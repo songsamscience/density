@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>송쌤과학과 함께하는 밀도 실험 (모바일 최적화)</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --accent: #f72585;
+            --bg-grad: linear-gradient(135deg, #f6f8fd 0%, #e2e6ea 100%);
+            --glass: rgba(255, 255, 255, 0.95);
+            --border: rgba(0, 0, 0, 0.08);
+            --font: 'Pretendard', -apple-system, system-ui, sans-serif;
+        }
+
+        * { box-sizing: border-box; outline: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font);
+            background: var(--bg-grad);
+            color: #333;
+            height: 100dvh;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header & Tabs --- */
+        header {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 100;
+        }
+        .brand { font-weight: 800; font-size: 1.2rem; background: linear-gradient(90deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap:8px;}
+
+        .tabs { display: flex; gap: 8px; background: #eee; padding: 4px; border-radius: 12px; }
+        .tab-btn {
+            border: none; background: none; padding: 8px 16px; border-radius: 8px;
+            font-size: 0.9rem; font-weight: 600; color: #666; cursor: pointer; transition: 0.2s; white-space: nowrap;
+        }
+        .tab-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+        /* --- Main Layout --- */
+        main {
+            flex: 1; display: grid; grid-template-columns: 1fr 360px; gap: 20px; padding: 20px;
+            max-width: 1600px; margin: 0 auto; width: 100%; height: calc(100dvh - 60px);
+        }
+
+        /* --- Canvas --- */
+        .canvas-area {
+            background: white; border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+            position: relative; overflow: hidden;
+            border: 4px solid white;
+            min-height: 300px;
+        }
+        canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: default; }
+
+        .overlay-msg {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 8px 16px;
+            border-radius: 20px; font-weight: 600; font-size: 1rem;
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        .overlay-msg.show { opacity: 1; }
+
+        /* --- Sidebar --- */
+        .sidebar { display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding-right: 5px; }
+        .panel { background: var(--glass); padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid var(--border); }
+        .panel-title { font-weight: 700; margin-bottom: 12px; color: #222; display: flex; align-items: center; gap:6px; font-size: 1rem; }
+        
+        /* Controls */
+        .btn {
+            width: 100%; padding: 12px; border: none; border-radius: 10px;
+            font-weight: 700; cursor: pointer; margin-bottom: 8px;
+            transition: 0.2s; font-size: 0.95rem;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--secondary); }
+        .btn-outline { background: white; border: 1px solid #ddd; color: #555; }
+        .btn-outline:hover { background: #f8f9fa; border-color: #bbb; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-accent:hover { background: #d81b60; }
+        
+        .radio-group { display: flex; gap: 10px; margin-bottom: 15px; background: #f0f2f5; padding: 4px; border-radius: 10px;}
+        .radio-btn {
+            flex: 1; text-align: center; padding: 8px; cursor: pointer; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; color: #666;
+        }
+        .radio-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* Custom Range Slider */
+        .control-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .slider-group { margin-bottom: 10px; }
+        .slider-group:last-child { margin-bottom: 0; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #555; margin-bottom: 8px; font-weight: 600; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; cursor: pointer; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: #dfe6e9; border-radius: 4px; }
+        input[type=range]::-webkit-slider-thumb {
+            height: 22px; width: 22px; border-radius: 50%; background: var(--primary); cursor: pointer;
+            -webkit-appearance: none; margin-top: -7px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); border: 2px solid white; transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+        /* Mode 3 Specific */
+        .item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .add-btn {
+            padding: 8px; border: 1px solid #ddd; border-radius: 8px; background: white;
+            cursor: pointer; font-size: 0.85rem; text-align: left; display: flex; align-items: center; gap: 6px;
+        }
+        .add-btn:hover { background: #f8f9fa; }
+        .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        
+        .density-order {
+            margin-top: 10px; padding: 10px; background: #fff3e0; border-radius: 8px;
+            font-size: 0.85rem; color: #e65100; border: 1px dashed #ffb74d; text-align: center; font-weight: 600; line-height: 1.6;
+        }
+
+        .answer-box {
+            margin-top: 10px; padding: 10px; background: #fff; border-radius: 8px;
+            text-align: center; font-weight: bold; color: #7b1fa2; border: 2px solid #e1bee7;
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .info-box {
+            margin-top: 10px; padding: 12px; background: #e3f2fd; border-radius: 8px;
+            font-size: 0.9rem; color: #1565c0; border: 1px solid #bbdefb;
+            display: none;
+        }
+
+        /* --- Mobile Responsive Rules --- */
+        @media (max-width: 900px) { 
+            body { overflow-y: auto; height: 100%; min-height: 100dvh; }
+            header { flex-direction: column; gap: 12px; padding: 15px; }
+            .tabs { flex-wrap: wrap; width: 100%; justify-content: center; }
+            .tab-btn { flex: 1 1 30%; font-size: 0.85rem; padding: 8px; text-align: center; }
+            main { 
+                display: flex; flex-direction: column; gap: 15px; padding: 15px;
+                height: auto; min-height: calc(100dvh - 100px);
+            }
+            .canvas-area {
+                flex: none; height: 45vh; min-height: 320px;
+            }
+            .sidebar {
+                flex: none; overflow: visible; padding-right: 0;
+            }
+            .item-grid { grid-template-columns: 1fr; }
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">🧪 송쌤과학과 함께하는 밀도 실험</div>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="setMode(1)">1. 부력</button>
+        <button class="tab-btn" onclick="setMode(2)">2. 금속 밀도 측정</button>
+        <button class="tab-btn" onclick="setMode(3)">3. 밀도 탑 (섞기)</button>
+    </div>
+</header>
+
+<main>
+    <div class="canvas-area">
+        <canvas id="simCanvas"></canvas>
+        <div id="guideOverlay" class="overlay-msg"></div>
+    </div>
+
+    <aside class="sidebar" id="sidebarContent">
+        <!-- JS generates content here based on mode -->
+    </aside>
+</main>
+
+<script>
+/**
+ * 송쌤과학 밀도 실험실 v8 (Mobile Responsive Update)
+ * - Canvas 요소 크기가 뷰포트에 맞게 가변적으로 조절됨
+ * - 모바일 세로 모드 지원 (스크롤 활성화)
+ */
+
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+const sidebar = document.getElementById('sidebarContent');
+
+let MODE = 1; 
+let width, height;
+const FLOOR_HEIGHT = 50;
+
+// --- Colors ---
+const COLORS = {
+    water: 'rgba(33, 150, 243, 0.4)', waterDeep: 'rgba(33, 150, 243, 0.6)',
+    oil: 'rgba(255, 235, 59, 0.5)', glycerin: 'rgba(200, 200, 200, 0.3)',
+    wood: '#8d6e63', steel: '#78909c', plastic: '#e53935',
+    iron: '#546e7a', gold: '#ffd700', silver: '#e0e0e0', copper: '#d84315',
+    bg: '#ffffff'
+};
+
+function drawEnvInfo() {
+    ctx.save();
+    ctx.font = '14px sans-serif'; ctx.fillStyle = '#666'; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText("실험 조건: 25℃, 1기압", width - 15, 15);
+    ctx.restore();
+}
+
+// =================================================================
+// MODE 1: Sink / Float 
+// =================================================================
+const Mode1 = {
+    subMode: 'size', 
+    dropped: false,
+    showInfo: false,
+    balls: [],
+    
+    reset() { this.dropped = false; this.initBalls(); },
+    toggleInfo() { this.showInfo = !this.showInfo; renderSidebar(); },
+
+    initBalls() {
+        if (!width) return;
+        const x1 = width * 0.3, x2 = width * 0.7;
+        const startY = height * 0.15;
+        
+        // 반응형 반지름 적용
+        const rNormal = Math.min(40, width * 0.12);
+        const rLarge = Math.min(60, width * 0.18);
+        const rSmall = Math.min(25, width * 0.08);
+
+        if (this.subMode === 'size') {
+            this.balls = [
+                { type: 'wood', x: x1, y: startY, r: rNormal, mass: 18, density: 0.7, vy: 0, color: COLORS.wood, label: '나무' },
+                { type: 'steel', x: x2, y: startY, r: rNormal, mass: 200, density: 7.8, vy: 0, color: COLORS.steel, label: '쇠' }
+            ];
+        } else {
+            this.balls = [
+                { type: 'wood', x: x1, y: startY, r: rLarge, mass: 50, density: 0.7, vy: 0, color: COLORS.wood, label: '나무' },
+                { type: 'steel', x: x2, y: startY, r: rSmall, mass: 50, density: 7.8, vy: 0, color: COLORS.steel, label: '쇠' }
+            ];
+        }
+    },
+
+    update() {
+        if (!this.dropped) return;
+        const waterLevel = height * 0.5;
+        const floorY = height - FLOOR_HEIGHT;
+
+        this.balls.forEach(b => {
+            b.vy += 0.5; 
+            if (b.y + b.r > waterLevel) {
+                b.vy *= 0.92; 
+                const submergedH = Math.min(2*b.r, (b.y + b.r) - waterLevel);
+                const ratio = submergedH / (2*b.r);
+                const buoyancy = (1.0 / b.density) * 0.6; 
+                if (ratio > 0) b.vy -= buoyancy * ratio;
+            }
+            if (b.y + b.r > floorY) {
+                b.y = floorY - b.r; b.vy *= -0.3;
+                if(Math.abs(b.vy) < 0.1) b.vy = 0;
+            }
+            b.y += b.vy;
+        });
+    },
+
+    draw() {
+        const waterLevel = height * 0.5;
+        ctx.fillStyle = COLORS.water; ctx.fillRect(0, waterLevel, width, height - waterLevel);
+        ctx.fillStyle = COLORS.waterDeep; ctx.beginPath(); ctx.moveTo(0, waterLevel); ctx.lineTo(width, waterLevel); ctx.stroke();
+        
+        ctx.fillStyle = '#cfd8dc'; ctx.fillRect(0, height - FLOOR_HEIGHT, width, FLOOR_HEIGHT);
+
+        this.balls.forEach(b => {
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+            ctx.fillStyle = b.color; ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(b.x - b.r*0.3, b.y - b.r*0.3, b.r*0.2, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#333'; ctx.textAlign = 'center';
+            let textY = b.y + b.r + 20;
+            if (b.y > height * 0.8) textY = b.y - b.r - 40;
+
+            ctx.font = 'bold 16px sans-serif'; ctx.fillText(b.label, b.x, textY);
+            ctx.font = '12px sans-serif'; ctx.fillStyle = '#555';
+            const info1 = this.subMode === 'size' ? '크기 같음' : `반지름 ${Math.round(b.r)}`;
+            const info2 = this.subMode === 'mass' ? '질량 같음' : `${b.mass}g`;
+            ctx.fillText(info1, b.x, textY + 18);
+            ctx.fillText(info2, b.x, textY + 32);
+        });
+        drawEnvInfo();
+    }
+};
+
+// =================================================================
+// MODE 2: Metal Density Measure
+// =================================================================
+const Mode2 = {
+    step: 0, material: 'iron',
+    block: { x: 50, y: 150, w: 0, h: 0, vx: 0, vy: 0, onScale: false, inWater: false, dragging: false },
+    scale: { x: 0, y: 0, w: 220, h: 80 },
+    cylinder: { x: 0, y: 0, w: 180, h: 350, maxVol: 250, pxPerVol: 0 },
+    mass: 50, waterBase: 100, 
+    measuredMass: null, measuredVol: null, showDensity: false, showAnswer: false, mystery: null,
+
+    materials: {
+        iron: { name: '철', label: 'Fe', density: 7.87, color: COLORS.iron },
+        copper: { name: '구리', label: 'Cu', density: 8.96, color: COLORS.copper },
+        aluminum: { name: '알루미늄', label: 'Al', density: 2.70, color: '#b0bec5' },
+        silver: { name: '은', label: 'Ag', density: 10.49, color: COLORS.silver },
+        gold: { name: '금', label: 'Au', density: 19.32, color: COLORS.gold },
+        mystery: { name: '미지물질', label: '?', density: 0, color: '#7209b7' }
+    },
+
+    init() {
+        this.step = 0; this.measuredMass = null; this.measuredVol = null;
+        this.showDensity = false; this.showAnswer = false;
+        this.block.vx = 0; this.block.vy = 0;
+        this.block.onScale = false; this.block.inWater = false;
+        this.resize();
+        this.updateBlockSize();
+    },
+
+    resize() {
+        if (!width) return;
+        const floorY = height - FLOOR_HEIGHT;
+        const isMobile = width < 600;
+
+        // 반응형 스케일 및 실린더 크기/위치 적용
+        this.scale.w = isMobile ? Math.max(120, width * 0.35) : 220;
+        this.scale.h = isMobile ? 60 : 80;
+        this.scale.x = isMobile ? 15 : width * 0.15;
+        this.scale.y = floorY - this.scale.h - 10;
+        
+        this.cylinder.w = isMobile ? Math.max(100, width * 0.3) : 180;
+        this.cylinder.h = isMobile ? Math.min(250, height * 0.5) : 350;
+        this.cylinder.x = isMobile ? width - this.cylinder.w - 15 : width * 0.65;
+        this.cylinder.y = floorY - this.cylinder.h;
+        this.cylinder.pxPerVol = (this.cylinder.h * 0.85) / this.cylinder.maxVol;
+        
+        if (!this.block.dragging && !this.block.onScale && !this.block.inWater) {
+            this.block.x = this.scale.x + 10;
+            this.block.y = this.scale.y - 100;
+        }
+    },
+
+    updateBlockSize() {
+        let density = this.materials[this.material].density;
+        if (this.material === 'mystery') {
+            if (!this.mystery) this.pickMystery();
+            density = this.mystery.density;
+        }
+        const vol = this.mass / density;
+        // 뷰포트 크기에 비례하여 블록 크기 시각화 보정
+        const scaleFactor = width < 600 ? 150 : 300; 
+        const size = Math.sqrt(vol * scaleFactor); 
+        this.block.w = size; this.block.h = size;
+    },
+
+    setMass(newMass) {
+        this.mass = parseFloat(newMass); this.measuredMass = null; this.measuredVol = null;
+        this.showDensity = false; this.step = 0; this.block.inWater = false; 
+        this.updateBlockSize();
+        if(document.getElementById('massLabelVal')) document.getElementById('massLabelVal').innerText = this.mass + ' g';
+    },
+
+    setWaterBase(newVol) {
+        this.waterBase = parseFloat(newVol); this.measuredVol = null; this.showDensity = false;
+        if (this.step === 2) this.step = 1; 
+        if(document.getElementById('waterLabelVal')) document.getElementById('waterLabelVal').innerText = this.waterBase + ' mL';
+    },
+    
+    calcDensity() {
+        if (this.measuredMass && this.measuredVol) { this.showDensity = true; renderSidebar(); } 
+        else { alert("먼저 질량과 부피 변화를 모두 측정해주세요."); }
+    },
+    
+    toggleAnswer() { this.showAnswer = !this.showAnswer; renderSidebar(); },
+
+    pickMystery() {
+        const candidates = ['iron', 'copper', 'aluminum', 'silver', 'gold'];
+        const target = this.materials[candidates[Math.floor(Math.random() * candidates.length)]];
+        this.mystery = { name: target.name, density: target.density };
+    },
+
+    update() {
+        const b = this.block; const floorY = height - FLOOR_HEIGHT;
+        if (b.dragging) {
+            b.vx = 0; b.vy = 0; b.onScale = false; b.inWater = false;
+        } else {
+            if (b.y + b.h < floorY && !b.onScale) { b.vy += 0.8; b.vy *= 0.95; } else { b.vy = 0; }
+            if (b.y + b.h >= floorY && !b.onScale && !b.inWater) {
+                b.y = floorY - b.h;
+                // 금속을 바닥에 내려놓으면 측정값 및 안내 문구를 1번 단계로 초기화
+                if (this.step !== 0) {
+                    this.step = 0;
+                    this.measuredMass = null;
+                    this.measuredVol = null;
+                    this.showDensity = false;
+                    renderSidebar();
+                }
+            }
+            b.x += b.vx; b.y += b.vy;
+        }
+
+        // Scale Logic
+        const s = this.scale;
+        if (!b.dragging) {
+            if (b.x + b.w/2 > s.x && b.x + b.w/2 < s.x + s.w && Math.abs((b.y+b.h) - s.y) < 25) {
+                b.y = s.y - b.h; b.vy = 0;
+                if (!b.onScale) {
+                    b.onScale = true; this.measuredMass = this.mass;
+                    if (this.step < 1) { this.step = 1; renderSidebar(); }
+                }
+            } else { b.onScale = false; }
+        }
+
+        // Cylinder Logic
+        const c = this.cylinder; const cx = b.x + b.w/2;
+        let density = this.material === 'mystery' ? (this.mystery ? this.mystery.density : 1) : this.materials[this.material].density;
+        const currentVol = this.waterBase + (b.inWater ? (this.mass / density) : 0);
+        const waterY = (c.y + c.h) - (currentVol * c.pxPerVol);
+        
+        if (cx > c.x && cx < c.x + c.w && b.y + b.h > waterY) {
+            if (!b.dragging) {
+                b.vy *= 0.8; 
+                if (b.y + b.h > c.y + c.h) b.y = c.y + c.h - b.h;
+            }
+            
+            const baseWaterY = (c.y + c.h) - (this.waterBase * c.pxPerVol);
+            const submergedH = Math.max(0, Math.min(b.h, (b.y + b.h) - baseWaterY));
+            
+            // 금속이 원래 수위보다 절반 이상 잠기면 물에 들어간 것으로 판단
+            if (submergedH / b.h > 0.5) {
+                if (!b.inWater) {
+                    b.inWater = true;
+                    if (!this.measuredVol) {
+                        this.measuredVol = this.mass / density;
+                        if (this.step < 2) { this.step = 2; renderSidebar(); }
+                    }
+                }
+            }
+        } else { b.inWater = false; }
+    },
+
+    draw() {
+        const floorY = height - FLOOR_HEIGHT;
+        const isMobile = width < 600;
+        ctx.fillStyle = '#cfd8dc'; ctx.fillRect(0, floorY, width, FLOOR_HEIGHT);
+
+        const s = this.scale;
+        ctx.fillStyle = '#eceff1'; ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(s.x, s.y, s.w, s.h, 10); ctx.fill(); ctx.stroke();
+        
+        const legW = isMobile ? 8 : 15;
+        ctx.fillStyle = '#cfd8dc'; 
+        ctx.fillRect(s.x+s.w*0.15, s.y+s.h, legW, floorY - (s.y+s.h)); 
+        ctx.fillRect(s.x+s.w*0.85-legW, s.y+s.h, legW, floorY - (s.y+s.h)); 
+        
+        ctx.fillStyle = '#263238'; ctx.fillRect(s.x+10, s.y+10, s.w-20, s.h-20);
+        ctx.fillStyle = '#4caf50'; ctx.font = `bold ${isMobile?18:28}px monospace`; ctx.textAlign = 'right';
+        ctx.fillText((this.block.onScale ? this.mass.toFixed(1) : "0.0") + " g", s.x+s.w-20, s.y + s.h/2 + (isMobile?6:10));
+
+        const c = this.cylinder; const bottomY = c.y + c.h;
+        let density = this.materials[this.material].density;
+        if (this.material === 'mystery') density = this.mystery ? this.mystery.density : 1;
+        
+        const currentVol = this.waterBase + (this.block.inWater ? (this.mass/density) : 0);
+        const waterH = currentVol * c.pxPerVol;
+        
+        ctx.fillStyle = COLORS.water; ctx.fillRect(c.x+5, bottomY - waterH, c.w-10, waterH);
+        ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]);
+        ctx.beginPath(); ctx.moveTo(c.x-5, bottomY - waterH); ctx.lineTo(c.x+c.w+5, bottomY - waterH); ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(currentVol.toFixed(1) + " mL", c.x + (isMobile? 5 : c.w + 10), bottomY - waterH - 5);
+
+        ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 3; ctx.beginPath();
+        const curveOffset = isMobile ? 15 : 30;
+        ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, bottomY-curveOffset/2); ctx.quadraticCurveTo(c.x, bottomY, c.x+curveOffset, bottomY);
+        ctx.lineTo(c.x+c.w-curveOffset, bottomY); ctx.quadraticCurveTo(c.x+c.w, bottomY, c.x+c.w, bottomY-curveOffset/2);
+        ctx.lineTo(c.x+c.w, c.y); ctx.stroke();
+        
+        ctx.fillStyle = '#455a64'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+        for(let v=20; v<=c.maxVol; v+=20) {
+            const y = bottomY - v * c.pxPerVol;
+            ctx.fillRect(c.x+c.w-10, y, 6, 1);
+            if(v % 40 === 0) ctx.fillText(v, c.x+c.w-12, y+4);
+        }
+
+        const b = this.block; const mat = this.materials[this.material];
+        ctx.save();
+        ctx.fillStyle = mat.color; ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 6); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'white'; ctx.font = `bold ${isMobile?14:18}px sans-serif`; ctx.textAlign = 'center';
+        if(b.w > 20) ctx.fillText(mat.label, b.x + b.w/2, b.y + b.h/2 + (isMobile?5:6));
+        ctx.restore();
+
+        // 텍스트 가독성을 높이기 위해 외곽선(Stroke) 적용 및 기구 위쪽에 배치
+        ctx.textAlign = 'center'; 
+        ctx.font = `bold ${isMobile ? 13 : 16}px Pretendard`;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
+        ctx.lineWidth = 4; 
+        ctx.lineJoin = 'round';
+
+        if (this.step === 0) {
+            const txt = "⬇️ 1. 금속을 저울 위에 올려 질량을 측정하세요.";
+            const textWidth = ctx.measureText(txt).width;
+            const textX = Math.max(textWidth / 2 + 10, Math.min(width - textWidth / 2 - 10, s.x + s.w / 2));
+            const textY = s.y - 25;
+            ctx.strokeText(txt, textX, textY);
+            ctx.fillStyle = '#e91e63';
+            ctx.fillText(txt, textX, textY);
+        } else if (this.step === 1) {
+            const txt = "⬇️ 2. 금속을 물에 넣어 부피 변화를 측정하세요.";
+            const textWidth = ctx.measureText(txt).width;
+            const textX = Math.max(textWidth / 2 + 10, Math.min(width - textWidth / 2 - 10, c.x + c.w / 2));
+            const textY = c.y - 25;
+            ctx.strokeText(txt, textX, textY);
+            ctx.fillStyle = '#1976d2';
+            ctx.fillText(txt, textX, textY);
+        }
+        
+        drawEnvInfo();
+    }
+};
+
+// =================================================================
+// MODE 3: Density Tower
+// =================================================================
+const Mode3 = {
+    items: [], isMixing: false, mixTimer: 0,
+    catalog: [
+        { id: 'iron', name: '철', type: 'solid', density: 7.87, color: COLORS.iron },
+        { id: 'glycerin', name: '글리세린', type: 'liquid', density: 1.26, color: COLORS.glycerin },
+        { id: 'water', name: '물', type: 'liquid', density: 1.00, color: COLORS.water },
+        { id: 'plastic', name: '플라스틱', type: 'solid', density: 0.96, color: COLORS.plastic }, 
+        { id: 'oil', name: '식용유', type: 'liquid', density: 0.92, color: COLORS.oil },
+        { id: 'wood', name: '나무', type: 'solid', density: 0.46, color: COLORS.wood } 
+    ],
+
+    reset() { this.items = []; this.isMixing = false; renderSidebar(); },
+
+    addItem(id) {
+        if (this.items.find(i => i.id === id)) return;
+        const item = this.catalog.find(i => i.id === id);
+        this.items.push({ ...item, y: 0, xOffset: Math.random() * 50, currentY: 0 });
+        if (!this.isMixing) this.sortItems();
+        renderSidebar(); 
+    },
+
+    sortItems() { this.items.sort((a, b) => b.density - a.density); },
+
+    startMix() {
+        if (this.items.length < 2) return alert("섞을 물질이 충분하지 않습니다.");
+        this.isMixing = true; this.mixTimer = 180; 
+        this.items.forEach(i => { i.vx = (Math.random() - 0.5) * 10; i.vy = (Math.random() - 0.5) * 10; });
+    },
+
+    draw() {
+        const isMobile = width < 600;
+        const cW = isMobile ? Math.min(200, width * 0.5) : 240;
+        const cH = isMobile ? height * 0.5 : 450;
+        const cX = width/2 - cW/2;
+        const floorY = height - FLOOR_HEIGHT; const cY = floorY;
+        
+        if (this.isMixing) {
+            this.mixTimer--;
+            if (this.mixTimer <= 0) { this.isMixing = false; this.sortItems(); }
+        }
+
+        ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 4; ctx.beginPath();
+        ctx.moveTo(cX, cY - cH); ctx.lineTo(cX, cY); ctx.lineTo(cX + cW, cY); ctx.lineTo(cX + cW, cY - cH); ctx.stroke();
+
+        const liquidItems = this.items.filter(i => i.type === 'liquid');
+        let displayLiquids = [...liquidItems];
+        if (this.isMixing && this.mixTimer % 10 === 0) displayLiquids.sort(() => Math.random() - 0.5);
+        else if (!this.isMixing) displayLiquids.sort((a,b) => b.density - a.density);
+
+        const layerH = Math.min(isMobile?80:100, (cH - 20) / (displayLiquids.length || 1));
+        let currentY = cY;
+
+        displayLiquids.forEach((item) => {
+            ctx.fillStyle = item.color; ctx.fillRect(cX + 4, currentY - layerH, cW - 8, layerH);
+            if (!this.isMixing) {
+                ctx.fillStyle = '#000'; ctx.font = '13px sans-serif'; ctx.textAlign = 'right';
+                ctx.fillText(item.name, cX - 8, currentY - layerH/2 + 4);
+            }
+            const orig = this.items.find(i => i.id === item.id);
+            if(orig) { orig.topY = currentY - layerH; orig.bottomY = currentY; }
+            currentY -= layerH;
+        });
+
+        const solidItems = this.items.filter(i => i.type === 'solid');
+        solidItems.forEach(solid => {
+            let targetY = cY; 
+            const solidW = isMobile ? 45 : 60; const solidH = isMobile ? 30 : 40;
+
+            if (this.isMixing) {
+                if (!solid.y) solid.y = cY - cH/2;
+                solid.y += (Math.random()-0.5) * 20;
+                if(solid.y > cY) solid.y = cY-20; if(solid.y < cY-cH) solid.y = cY-cH+20;
+                targetY = solid.y;
+            } else {
+                const sortedLiquids = this.items.filter(i => i.type === 'liquid').sort((a,b) => a.density - b.density);
+                let foundFloating = false;
+                for (let i = 0; i < sortedLiquids.length; i++) {
+                    const liq = sortedLiquids[i];
+                    if (solid.density < liq.density) {
+                        const liqAbove = (i > 0) ? sortedLiquids[i-1] : null; 
+                        let r = liqAbove ? (solid.density - liqAbove.density) / (liq.density - liqAbove.density) : solid.density / liq.density;
+                        r = Math.max(0.1, Math.min(0.9, r));
+                        targetY = liq.topY - solidH * (1 - r);
+                        foundFloating = true; break; 
+                    }
+                }
+                if (!foundFloating) targetY = floorY - solidH; 
+                if (!solid.y) solid.y = cY - cH;
+                solid.y += (targetY - solid.y) * 0.08;
+            }
+
+            const xOffset = (solid.xOffset % (cW - solidW - 10)) + 5;
+            ctx.fillStyle = solid.color; ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); 
+            if (solid.id === 'iron') ctx.rect(cX + xOffset, solid.y, solidW, solidH);
+            else ctx.roundRect(cX + xOffset, solid.y, solidW, solidH, 6);
+            ctx.fill(); ctx.stroke();
+            
+            ctx.fillStyle = 'white'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(solid.name.split(' ')[0], cX + xOffset + solidW/2, solid.y + solidH/2 + 4);
+
+            if (!this.isMixing) {
+                ctx.fillStyle = solid.color; ctx.beginPath(); ctx.arc(cX + cW + 15, solid.y + solidH/2, 5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#000'; ctx.textAlign = 'left';
+                ctx.fillText(solid.name, cX + cW + 25, solid.y + solidH/2 + 4);
+            }
+        });
+
+        if (this.isMixing) {
+            ctx.font = 'bold 24px Pretendard'; ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.textAlign = 'center';
+            ctx.fillText("🌪️ 섞는 중...", cX + cW/2, cY - cH/2);
+        }
+        
+        ctx.fillStyle = '#cfd8dc'; ctx.fillRect(0, floorY, width, FLOOR_HEIGHT);
+        drawEnvInfo();
+    }
+};
+
+// --- Core Logic ---
+
+function setMode(m) {
+    MODE = m;
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === m));
+    if (m === 1) Mode1.reset();
+    if (m === 2) Mode2.init();
+    if (m === 3) Mode3.reset();
+    renderSidebar();
+}
+
+function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width; canvas.height = rect.height;
+    width = canvas.width; height = canvas.height;
+    if (MODE === 1) Mode1.initBalls();
+    if (MODE === 2) Mode2.resize();
+}
+
+function loop() {
+    ctx.clearRect(0, 0, width, height);
+    if (MODE === 1) { Mode1.update(); Mode1.draw(); }
+    else if (MODE === 2) { Mode2.update(); Mode2.draw(); }
+    else if (MODE === 3) { Mode3.draw(); }
+    requestAnimationFrame(loop);
+}
+
+// --- Sidebar Renderers ---
+
+function renderSidebar() {
+    let html = '';
+    if (MODE === 1) {
+        html = `
+            <div class="panel">
+                <div class="panel-title">🪀 실험 조건 선택</div>
+                <div class="radio-group">
+                    <div class="radio-btn ${Mode1.subMode==='size'?'active':''}" onclick="setMode1Sub('size')">크기 같음</div>
+                    <div class="radio-btn ${Mode1.subMode==='mass'?'active':''}" onclick="setMode1Sub('mass')">질량 같음</div>
+                </div>
+                <button class="btn btn-primary" onclick="Mode1.dropped=true">💧 물에 넣기</button>
+                <button class="btn btn-outline" onclick="Mode1.reset()">↺ 다시 하기</button>
+            </div>
+            <div class="panel">
+                <div class="panel-title">💡 실험 원리</div>
+                <p style="font-size:0.9rem; color:#666; margin-bottom:10px;">물체는 <strong>밀도</strong>가 물(1.0)보다 작으면 뜨고, 크면 가라앉습니다.</p>
+                <button class="btn btn-outline" style="font-size:0.85rem; padding:8px;" onclick="Mode1.toggleInfo()">ℹ️ 밀도 정보 확인</button>
+                <div class="info-box" style="display:${Mode1.showInfo ? 'block' : 'none'}">
+                    나무: 0.7 g/cm³ (뜸)<br>쇠: 7.8 g/cm³ (가라앉음)
+                </div>
+            </div>`;
+    } else if (MODE === 2) {
+        html = `
+            <div class="panel">
+                <div class="panel-title">🔬 물질 선택</div>
+                <div class="radio-group" style="flex-wrap:wrap;">
+                    ${Object.keys(Mode2.materials).map(k => `
+                        <div class="radio-btn ${Mode2.material===k?'active':''}" onclick="setMode2Mat('${k}')" style="min-width:40%;">${Mode2.materials[k].name}</div>
+                    `).join('')}
+                </div>
+                <div class="control-box">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>금속 크기(질량)</span> <span id="massLabelVal">${Mode2.mass} g</span></div>
+                        <input type="range" min="20" max="200" step="10" value="${Mode2.mass}" oninput="setMode2Mass(this.value)">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label"><span>물 초기 높이</span> <span id="waterLabelVal">${Mode2.waterBase} mL</span></div>
+                        <input type="range" min="50" max="150" step="10" value="${Mode2.waterBase}" oninput="setMode2Water(this.value)">
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                 <div class="panel-title">📏 측정 결과</div>
+                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>질량(m):</span><strong style="color:var(--primary);">${Mode2.measuredMass ? Mode2.measuredMass.toFixed(1)+' g' : '-'}</strong></div>
+                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>부피변화(ΔV):</span><strong style="color:var(--primary);">${Mode2.measuredVol ? Mode2.measuredVol.toFixed(1)+' mL' : '-'}</strong></div>
+                 <button class="btn btn-accent" onclick="Mode2.calcDensity()">🧮 밀도 계산</button>
+                 <div style="text-align:center; font-size:1.1rem; font-weight:700; color:#333; margin-top:10px;">
+                    밀도: ${ Mode2.showDensity ? ((Mode2.measuredMass / Mode2.measuredVol).toFixed(2) + ' g/cm³') : '<span style="color:#aaa;">?</span>' }
+                 </div>
+            </div>
+            <button class="btn btn-outline" onclick="Mode2.init()">↺ 실험 초기화</button>
+            ${Mode2.material === 'mystery' ? `
+                <div class="panel" style="background:#f3e5f5; border:1px dashed #ab47bc;">
+                    <button class="btn" style="background:#7b1fa2; color:white;" onclick="clickCheckAnswer()">🔍 정답 확인</button>
+                    ${Mode2.showAnswer ? `<div class="answer-box">정답: ${Mode2.mystery.name} (${Mode2.mystery.density} g/cm³)</div>` : ''}
+                </div>` : ''}`;
+    } else if (MODE === 3) {
+        html = `
+            <div class="panel">
+                <div class="panel-title">🧪 물질 추가하기</div>
+                <div class="item-grid">
+                    ${Mode3.catalog.map(item => `
+                        <button class="add-btn" onclick="Mode3.addItem('${item.id}')">
+                            <span class="color-dot" style="background:${item.color}"></span> ${item.name}
+                        </button>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary" onclick="Mode3.startMix()">🌪️ 흔들어서 섞기</button>
+                <button class="btn btn-outline" onclick="Mode3.reset()">🗑️ 비커 비우기</button>
+            </div>
+            <div class="panel">
+                <div class="panel-title">📊 밀도 순서 (큰 순서)</div>
+                <div class="density-order">${getDensityString()}</div>
+            </div>`;
+    }
+    sidebar.innerHTML = html;
+}
+
+window.setMode = setMode;
+window.setMode1Sub = (t) => { Mode1.subMode = t; Mode1.reset(); renderSidebar(); };
+window.setMode2Mat = (m) => { Mode2.material = m; Mode2.init(); renderSidebar(); };
+window.setMode2Mass = (v) => { Mode2.setMass(v); renderSidebar(); };
+window.setMode2Water = (v) => { Mode2.setWaterBase(v); renderSidebar(); };
+window.clickCheckAnswer = () => { Mode2.toggleAnswer(); };
+window.Mode1 = Mode1; window.Mode2 = Mode2; window.Mode3 = Mode3;
+
+function getDensityString() {
+    if (Mode3.items.length === 0) return "물질을 추가하세요.";
+    const sorted = [...Mode3.items].sort((a,b) => b.density - a.density);
+    const seen = new Set(); const result = [];
+    sorted.forEach(i => { if (!seen.has(i.name)) { seen.add(i.name); result.push(`${i.name.split(' ')[0]}(${i.density})`); }});
+    return result.join(' > ');
+}
+
+// Input Handling
+function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.touches ? e.touches[0].clientX : e.clientX) - r.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - r.top };
+}
+
+canvas.addEventListener('mousedown', startDrag);
+canvas.addEventListener('touchstart', startDrag, {passive: false});
+function startDrag(e) {
+    if (MODE !== 2) return;
+    const p = getPos(e); const b = Mode2.block;
+    if (p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h) {
+        b.dragging = true; b.offsetX = p.x - b.x; b.offsetY = p.y - b.y;
+        e.preventDefault(); // 드래그 시작 시에만 스크롤 방지
+        canvas.style.cursor = 'grabbing';
+    }
+}
+
+canvas.addEventListener('mousemove', moveDrag);
+canvas.addEventListener('touchmove', moveDrag, {passive: false});
+function moveDrag(e) {
+    if (MODE !== 2) { canvas.style.cursor = 'default'; return; }
+    const p = getPos(e); const b = Mode2.block;
+    if (b.dragging) {
+        canvas.style.cursor = 'grabbing';
+        b.x = p.x - b.offsetX; b.y = p.y - b.offsetY;
+        e.preventDefault(); // 드래그 중에 화면 스크롤 방지
+    } else {
+        canvas.style.cursor = (p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h) ? 'grab' : 'default';
+    }
+}
+
+window.addEventListener('mouseup', () => { if(MODE===2) { Mode2.block.dragging = false; canvas.style.cursor = 'default'; }});
+window.addEventListener('touchend', () => { if(MODE===2) Mode2.block.dragging = false; });
+window.addEventListener('resize', () => { resize(); renderSidebar(); });
+
+resize(); setMode(1); loop();
+</script>
+</body>
+</html>
